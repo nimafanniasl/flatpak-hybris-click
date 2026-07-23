@@ -49,10 +49,20 @@ click for Ubuntu Touch. No rootfs writes.
        full gpg verify OK (needed gpgconf.ctl rootdir relocation!), dry-run
        proves GL.hybris extension ro-bind + HYBRIS_*/FLATPAK_GL_DRIVERS env
 6. [x] README.md with install instructions + caveats
-7. [ ] On-device test (no device attached today): userns/bwrap, wayland, real GL
-8. [ ] Ideas: per-app desktop launchers, focal variant, OpenStore submission
+7. [x] Autobuild: repo restructured (build-payload.sh/smoke-payload.sh run in
+       pristine arm64 ubuntu:noble; *-local.sh podman wrappers), pushed to
+       git@gitlab.com:Azkali/flatpak-hybris-click (private, push-to-create).
+       GitLab CI on saas-linux-small-arm64 (build+smoke, .click artifact,
+       30d expiry) + weekly schedule (Mon 04:20 UTC, id 4356377) so new
+       droidian libhybris / noble debs are picked up automatically; CI
+       versions get +git<date>.<sha>. .github/workflows/build.yml included
+       for a possible GitHub mirror (needs public repo for free arm64).
+8. [ ] On-device test (no device attached today): userns/bwrap, wayland, real GL
+9. [ ] Ideas: per-app desktop launchers, focal variant, OpenStore submission
 
 Renamed to flatpak-hybris.ubports per Az (was .azkali).
+Note: extension debs are fetched at build time now (latest from droidian repo);
+click/ holds only source, no binaries in git.
 
 Workspace: ~/claude-builds/flatpak-hybris-click/
 - flatpak-hybris/  (droidian wrapper repo)
