@@ -1,0 +1,15 @@
+{
+    "name": "flatpak-hybris.ubports",
+    "description": "Flatpak with libhybris GL support for Ubuntu Touch",
+    "architecture": "arm64",
+    "title": "Flatpak (hybris)",
+    "hooks": {
+        "flatpak-hybris": {
+            "apparmor": "flatpak-hybris.apparmor",
+            "desktop": "flatpak-hybris.desktop"
+        }
+    },
+    "version": "0.1.0",
+    "maintainer": "Azkali <a.ffcc7@gmail.com>",
+    "framework": "ubuntu-touch-24.04-1.x"
+}

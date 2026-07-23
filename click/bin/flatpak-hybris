@@ -1,0 +1,75 @@
+#!/bin/bash
+# flatpak wrapper for Ubuntu Touch, adapted from Droidian's flatpak-hybris.
+# Everything (flatpak, bwrap, xdg-dbus-proxy, gnupg, the GL.hybris extension)
+# is bundled in the click; nothing is written outside the user's home.
+
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+ROOT="$(dirname "$(dirname "$SELF")")"
+SYS="$ROOT/sysroot"
+
+TRIPLET="aarch64-linux-gnu"
+LIBDIR="lib64"
+
+export PATH="$SYS/usr/bin:$PATH"
+export LD_LIBRARY_PATH="$SYS/usr/lib/$TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# GL.hybris extension is served from the click via the system installation dir
+export FLATPAK_SYSTEM_DIR="$ROOT/flatpak-system"
+export FLATPAK_GL_DRIVERS="hybris"
+export FLATPAK_DBUSPROXY="$SYS/usr/bin/xdg-dbus-proxy"
+
+# Prefer a setuid host bwrap if the rootfs has one, else the bundled one
+# (which needs unprivileged user namespaces in the kernel).
+if [ -z "$FLATPAK_BWRAP" ]; then
+	if [ -u /usr/bin/bwrap ]; then
+		FLATPAK_BWRAP="/usr/bin/bwrap"
+	else
+		FLATPAK_BWRAP="$SYS/usr/bin/bwrap"
+	fi
+fi
+export FLATPAK_BWRAP
+
+FLATPAK="$SYS/usr/bin/flatpak"
+
+[ -z "${HYBRIS_LD_LIBRARY_PATH}" ] && \
+	HYBRIS_LD_LIBRARY_PATH="/system/${LIBDIR}:/vendor/${LIBDIR}:/odm/${LIBDIR}"
+
+# Optional TLS padding preload inside the sandbox (some devices need it)
+if [ "${FLATPAK_HYBRIS_TLS_PADDING}" = "1" ]; then
+	LD_PRELOAD="/usr/lib/${TRIPLET}/GL/hybris/${LIBDIR}/libtls-padding.so${LD_PRELOAD:+:$LD_PRELOAD}"
+fi
+
+# Split args at the "run" verb so hybris options can be injected after it
+pre=()
+post=()
+is_run=0
+for arg in "$@"; do
+	if [ "$is_run" = "0" ] && [ "$arg" = "run" ]; then
+		is_run=1
+		continue
+	fi
+	if [ "$is_run" = "1" ]; then
+		post+=("$arg")
+	else
+		pre+=("$arg")
+	fi
+done
+
+if [ "$is_run" = "1" ]; then
+	exec "$FLATPAK" "${pre[@]}" run \
+		--filesystem=/system:ro \
+		--filesystem=/vendor:ro \
+		--filesystem=/odm:ro \
+		--filesystem=/apex:ro \
+		--filesystem=/android:ro \
+		--device=all \
+		--env=HYBRIS_EGLPLATFORM_DIR=/usr/lib/${TRIPLET}/GL/hybris/${LIBDIR}/libhybris \
+		--env=HYBRIS_LINKER_DIR=/usr/lib/${TRIPLET}/GL/hybris/${LIBDIR}/libhybris/linker \
+		--env=HYBRIS_LD_LIBRARY_PATH=${HYBRIS_LD_LIBRARY_PATH} \
+		--env=LD_LIBRARY_PATH=/usr/lib/${TRIPLET}/GL/hybris/${LIBDIR}/libhybris-egl:/usr/lib/${TRIPLET}/GL/hybris/${LIBDIR} \
+		--env=LD_PRELOAD="${LD_PRELOAD}" \
+		--env=GSK_RENDERER="${GSK_RENDERER}" \
+		"${post[@]}"
+else
+	exec "$FLATPAK" "$@"
+fi

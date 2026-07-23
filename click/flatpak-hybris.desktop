@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Flatpak (hybris)
+Comment=Run flatpak apps with libhybris GL
+Exec=app/launch.sh
+Icon=assets/logo.svg
+Terminal=false
+Type=Application
+X-Lomiri-Touch=true

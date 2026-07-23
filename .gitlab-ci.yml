@@ -1,0 +1,26 @@
+# Builds the click on GitLab.com arm64 SaaS runners. If those are not
+# available on the project's tier, switch the tag to a self-hosted arm64
+# runner (or wire up qemu on amd64).
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  image: ubuntu:noble
+  tags:
+    - saas-linux-small-arm64
+  script:
+    - ./build-payload.sh
+  artifacts:
+    paths:
+      - out/*.click
+    expire_in: 30 days
+
+smoke:
+  stage: test
+  image: ubuntu:noble
+  tags:
+    - saas-linux-small-arm64
+  script:
+    - ./smoke-payload.sh out/*.click
