@@ -40,7 +40,7 @@ MainView {
         anchors.fill: parent
         header: PageHeader {
             id: header
-            title: i18n.tr("Flatpak (hybris)")
+            title: i18n.tr("Flatpak Hybris")
         }
 
         Flickable {

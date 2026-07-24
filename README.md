@@ -4,6 +4,12 @@ Self-contained click packaging of Droidian's flatpak-hybris stack for
 Ubuntu Touch 24.04-1.x. Nothing is written outside the click install dir and
 the user's home.
 
+Droidian's own packaging diverts `/usr/bin/flatpak` and sets bwrap setuid in
+a debian postinst; that does not fit the read-only UT image and would be
+reverted by OTA. Here the whole stack (flatpak included) ships inside the
+click and is relocated via environment variables, so OTA updates never touch
+it.
+
 Artifact: `out/flatpak-hybris.ubports_0.1.0_arm64.click` (~27 MB)
 
 ## What's inside
@@ -33,7 +39,7 @@ Artifact: `out/flatpak-hybris.ubports_0.1.0_arm64.click` (~27 MB)
     adb push out/flatpak-hybris.ubports_0.1.0_arm64.click /home/phablet/
     adb shell pkcon install-local --allow-untrusted /home/phablet/flatpak-hybris.ubports_0.1.0_arm64.click
 
-Open "Flatpak (hybris)" once (setup + status), then from the Terminal app:
+Open "Flatpak Hybris" once (setup + status), then from the Terminal app:
 
     flatpak install flathub org.gnome.Calculator
     flatpak run org.gnome.Calculator
