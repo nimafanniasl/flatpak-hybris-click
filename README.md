@@ -46,6 +46,21 @@ Open "Flatpak Hybris" once (setup + status), then from the Terminal app:
 
 (`flatpak` = symlink in ~/.local/bin; re-login once if not found.)
 
+## Confinement (this branch)
+
+This branch drops the `unconfined` apparmor template: the app runs under the
+stock `ubuntu-sdk` template plus a new reserved `sandboxing` policy group
+proposed for apparmor-easyprof-ubuntu. The app profile itself gets no mount
+or namespace privileges; bubblewrap is handed off to an unconfined-mode
+child profile (same approach as Ubuntu's /etc/apparmor.d/bwrap), and the
+bundled bwrap is executed from `~/.cache/flatpak-hybris.ubports/` because
+the click install dir cannot carry the exec transition.
+
+Until the `sandboxing` group ships in an image, installing this build fails
+at apparmor policy generation - use master (unconfined) on stock images.
+Confinement also blocks the automatic `~/.local/bin/flatpak` symlink; the
+status page shows the one-liner to create it from the (unconfined) Terminal.
+
 ## Requirements / caveats
 
 - **CONFIG_USER_NS in the device kernel.** A click cannot ship a setuid bwrap

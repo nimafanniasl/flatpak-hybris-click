@@ -125,7 +125,26 @@ MainView {
                     width: parent.width
                     wrapMode: Text.Wrap
                     textSize: Label.Small
+                    visible: status.symlinksOk === true
                     text: i18n.tr("A 'flatpak' symlink was placed in ~/.local/bin (log out and back in once if it is not found). GL goes through the bundled libhybris extension; installs are per-user under ~/.local/share/flatpak.")
+                }
+
+                Label {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    textSize: Label.Small
+                    visible: status.symlinksOk === false
+                    text: i18n.tr("Confinement prevents creating the 'flatpak' symlink; run this once in the Terminal app:")
+                }
+
+                Label {
+                    width: parent.width
+                    wrapMode: Text.WrapAnywhere
+                    visible: status.symlinksOk === false
+                    font.family: "Ubuntu Mono"
+                    textSize: Label.Small
+                    text: "mkdir -p ~/.local/bin\n" +
+                          "ln -sf " + (status.clickRoot || "<click dir>") + "/bin/flatpak-hybris ~/.local/bin/flatpak"
                 }
             }
         }

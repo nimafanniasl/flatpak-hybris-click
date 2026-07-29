@@ -19,12 +19,20 @@ export FLATPAK_GL_DRIVERS="hybris"
 export FLATPAK_DBUSPROXY="$SYS/usr/bin/xdg-dbus-proxy"
 
 # Prefer a setuid host bwrap if the rootfs has one, else the bundled one
-# (which needs unprivileged user namespaces in the kernel).
+# (which needs unprivileged user namespaces in the kernel). The bundled copy
+# runs from the cache dir: the sandboxing apparmor policy group can only
+# transition bwrap from there, not from the click install dir.
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/flatpak-hybris.ubports"
 if [ -z "$FLATPAK_BWRAP" ]; then
 	if [ -u /usr/bin/bwrap ]; then
 		FLATPAK_BWRAP="/usr/bin/bwrap"
 	else
-		FLATPAK_BWRAP="$SYS/usr/bin/bwrap"
+		if ! cmp -s "$SYS/usr/bin/bwrap" "$CACHE/bwrap"; then
+			mkdir -p "$CACHE"
+			cp "$SYS/usr/bin/bwrap" "$CACHE/bwrap"
+			chmod 755 "$CACHE/bwrap"
+		fi
+		FLATPAK_BWRAP="$CACHE/bwrap"
 	fi
 fi
 export FLATPAK_BWRAP

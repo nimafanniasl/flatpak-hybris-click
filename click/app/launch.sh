@@ -15,8 +15,14 @@ json_escape() {
 }
 
 # --- sandbox capability check ---------------------------------------------
+# Same selection as bin/flatpak-hybris: setuid host bwrap, else the bundled
+# copy kept in the cache dir (the only path confinement can exec it from)
 SYS="$ROOT/sysroot"
-BWRAP="$SYS/usr/bin/bwrap"
+if ! cmp -s "$SYS/usr/bin/bwrap" "$CACHE/bwrap"; then
+	cp "$SYS/usr/bin/bwrap" "$CACHE/bwrap"
+	chmod 755 "$CACHE/bwrap"
+fi
+BWRAP="$CACHE/bwrap"
 [ -u /usr/bin/bwrap ] && BWRAP=/usr/bin/bwrap
 if LD_LIBRARY_PATH="$SYS/usr/lib/aarch64-linux-gnu" "$BWRAP" --unshare-user --ro-bind / / /bin/true 2>"$CACHE/bwrap.err"; then
 	bwrap_ok=true
@@ -28,9 +34,14 @@ else
 fi
 
 # --- CLI symlinks so 'flatpak' works from the Terminal app ----------------
-mkdir -p "$HOME/.local/bin"
-ln -sf "$FP" "$HOME/.local/bin/flatpak"
-ln -sf "$FP" "$HOME/.local/bin/flatpak-hybris"
+# Best effort: confinement denies writes to ~/.local/bin. The status page
+# shows the ln -s to run once from the (unconfined) terminal instead.
+symlinks_ok=false
+if mkdir -p "$HOME/.local/bin" 2>/dev/null \
+	&& ln -sf "$FP" "$HOME/.local/bin/flatpak" 2>/dev/null \
+	&& ln -sf "$FP" "$HOME/.local/bin/flatpak-hybris" 2>/dev/null; then
+	symlinks_ok=true
+fi
 
 # --- flathub remote (best effort, needs network) --------------------------
 flathub_ok=false
@@ -51,6 +62,7 @@ cat > "$STATUS" <<EOF
   "bwrapOk": ${bwrap_ok},
   "bwrapMsg": "${bwrap_msg}",
   "flathubOk": ${flathub_ok},
+  "symlinksOk": ${symlinks_ok},
   "runtimes": "${runtimes}",
   "apps": "${apps}",
   "clickRoot": "${ROOT}"
