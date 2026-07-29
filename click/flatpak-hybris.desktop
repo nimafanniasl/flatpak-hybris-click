@@ -2,7 +2,7 @@
 Name=Flatpak Hybris
 Comment=Run flatpak apps with libhybris GL
 Exec=app/launch.sh
-Icon=assets/logo.svg
+Icon=assets/flatpak-halium.svg
 Terminal=false
 Type=Application
 X-Lomiri-Touch=true
