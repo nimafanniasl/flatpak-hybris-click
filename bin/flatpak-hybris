@@ -63,14 +63,16 @@ for arg in "$@"; do
 	fi
 done
 
+mkdir $HOME/.local/share/applications/flatpak
+
 if [ "$is_run" = "1" ]; then
 	exec "$FLATPAK" "${pre[@]}" run \
+		--device=all \
 		--filesystem=/system:ro \
 		--filesystem=/vendor:ro \
 		--filesystem=/odm:ro \
 		--filesystem=/apex:ro \
 		--filesystem=/android:ro \
-		--device=all \
 		--env=HYBRIS_EGLPLATFORM_DIR=/usr/lib/${TRIPLET}/GL/hybris/${LIBDIR}/libhybris \
 		--env=HYBRIS_LINKER_DIR=/usr/lib/${TRIPLET}/GL/hybris/${LIBDIR}/libhybris/linker \
 		--env=HYBRIS_LD_LIBRARY_PATH=${HYBRIS_LD_LIBRARY_PATH} \

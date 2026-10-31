@@ -1,5 +1,2 @@
-/out/
-/debs/
-/flatpak-hybris/
-/flatpak-src/
-/Packages-trixie.gz
+build
+.clickable

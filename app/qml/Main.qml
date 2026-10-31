@@ -11,11 +11,12 @@ MainView {
     property var status: ({})
 
     function statusPath() {
-        var args = Qt.application.arguments
-        for (var i = 0; i < args.length; i++)
-            if (args[i].indexOf("status.json") !== -1)
-                return args[i]
-        return ""
+        // var args = Qt.application.arguments
+        // for (var i = 0; i < args.length; i++)
+        //     if (args[i].indexOf("status.json") !== -1)
+        //         return args[i]
+        // return ""
+        return "/home/phablet/.cache/flatpak-hybris.ubports/status.json"
     }
 
     Component.onCompleted: {

@@ -1,7 +1,0 @@
-{
-    "policy_groups": [
-        "networking",
-        "sandboxing"
-    ],
-    "policy_version": 2404.1
-}

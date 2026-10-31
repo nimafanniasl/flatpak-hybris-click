@@ -1,0 +1,20 @@
+{
+  "clickable_minimum_required": "8.10.0",
+  "build": "bash ${ROOT}/build.sh",
+  "framework": "ubuntu-touch-24.04-2.x",
+  "builder": "custom",
+  "skip_review": true,
+  "always_clean": true,
+
+
+  "install_root_data": [
+    "flatpak-hybris.desktop",
+    "flatpak-hybris.apparmor"
+  ],
+  "dependencies_host": [
+    "click"
+  ],
+  "dependencies_target": [
+    "curl"
+ ]
+}

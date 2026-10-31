@@ -1,0 +1,56 @@
+name: "release-app"
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-[a-z]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-[a-z]+.[0-9]+'
+
+jobs:
+  create-release:
+    permissions: write-all
+    environment: Flatpak Hybris Release
+    runs-on: ubuntu-latest
+    outputs:
+      releaseId: ${{ steps.step1.outputs.id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: step1
+        uses: ncipollo/release-action@v1
+        with:
+          name: "Flatpak support for Ubuntu Touch ${{ github.ref_name }}"
+          body: |
+            HIGHLY EXPERIMENTAL - Currently built for UT 24.04-2.x
+
+          draft: false
+          prerelease: false
+          allowUpdates: true
+
+  build-app:
+    permissions: write-all
+    runs-on: ubuntu-24.04-arm
+    environment: Flatpak Hybris Release
+    needs: create-release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packages
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y dpkg-dev pipx
+          pipx install clickable-ut
+
+      - name: Build click
+        env:
+          CLICKABLE_DOCKER_COMMAND: docker
+        run: |
+          clickable build --arch arm64 --skip-review
+
+      - name: Upload click to release
+        uses: AButler/upload-release-assets@v3.0
+        with:
+          files: "build/aarch64-linux-gnu/app/*.click"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-id: ${{ needs.create-release.outputs.releaseId }}

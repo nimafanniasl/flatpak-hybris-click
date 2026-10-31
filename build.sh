@@ -1,29 +1,38 @@
 #!/bin/bash
 # Full click build. Runs INSIDE a pristine arm64 ubuntu:noble environment
 # (CI job container or podman via build-local.sh), as root.
-# Output: $OUT/flatpak-hybris.ubports_<version>_arm64.click
-set -e
+# Output: $CLICK/flatpak-hybris.ubports_<version>_arm64.click
+set -ex
 
 SRC="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 WORK="${WORK:-/tmp/fh-build}"
-OUT="${OUT:-$SRC/out}"
 DROIDIAN=https://production.repo.droidian.org
 CLICK_PREFIX=/opt/click.ubuntu.com/flatpak-hybris.ubports/current
 
-[ "$(dpkg --print-architecture)" = "arm64" ] || { echo "need arm64"; exit 1; }
+# [ "$(dpkg --print-architecture)" = "arm64" ] || { echo "need arm64"; exit 1; }
 export DEBIAN_FRONTEND=noninteractive
 rm -rf "$WORK"
-mkdir -p "$WORK/debs" "$OUT"
+mkdir -p "$WORK/debs"
+
+mkdir -p "$WORK/apt/lists/partial"
+mkdir -p "$WORK/apt/cache/archives/partial"
+mkdir -p "$WORK/apt/empty"
+
+APT_OPTS=(
+    -o Dir::State::lists="$WORK/apt/lists"
+    -o Dir::Cache::archives="$WORK/apt/cache/archives"
+    -o Dir::Etc::sourcelist="/etc/apt/sources.list"
+    -o Dir::Etc::sourceparts="/etc/apt/sources.list.d"
+    -o Debug::NoLocking=1
+)
 
 # 1. noble closure: whatever apt would add on top of the pristine base image
 #    is exactly what the UT rootfs is missing. Must run before anything else
 #    is installed or the closure shrinks.
-apt-get update -qq
-apt-get install -y --download-only --no-install-recommends \
-	flatpak xdg-dbus-proxy bubblewrap gnupg ca-certificates
-cp /var/cache/apt/archives/*.deb "$WORK/debs/"
-
-apt-get install -y --no-install-recommends curl ca-certificates >/dev/null
+apt-get "${APT_OPTS[@]}" update -qq
+apt-get "${APT_OPTS[@]}" install -y --download-only --no-install-recommends \
+	flatpak:arm64 xdg-dbus-proxy:arm64 bubblewrap:arm64 ca-certificates:arm64 gpg:arm64 gpgconf:arm64 gpg-agent:arm64 gpgv:arm64
+cp $WORK/apt/cache/archives/*.deb "$WORK/debs/"
 
 # 2. latest Droidian GL.hybris extension debs
 curl -fsSL "$DROIDIAN/dists/trixie/main/binary-arm64/Packages.gz" -o "$WORK/Packages.gz"
@@ -44,10 +53,10 @@ for pkg in flatpak-extension-gl-hybris flatpak-extension-gl-hybris-tls-padding; 
 done
 
 # 3. assemble click tree
-PKGDIR="$WORK/pkg"
-SYS="$PKGDIR/sysroot"
-mkdir -p "$SYS" "$PKGDIR/DEBIAN"
-cp -a "$SRC/click/." "$PKGDIR/"
+CLICK=$INSTALL_DIR
+SYS="$CLICK/sysroot"
+mkdir -p "$SYS"
+# cp -a "$SRC/click/." "$CLICK/"
 
 # provided by the UT 24.04 rootfs itself; do not bundle
 EXCLUDE='^(libc6|libc-bin|gcc-14-base|libgcc-s1|libstdc\+\+6|adduser|debconf|dbus|dbus-bin|dbus-daemon|dbus-session-bus-common|dbus-system-bus-common|ca-certificates|openssl)_'
@@ -60,8 +69,8 @@ for deb in "$WORK"/debs/*.deb; do
 	*)	if [[ "$name" =~ $EXCLUDE ]]; then echo "   skip $name"; else dpkg-deb -x "$deb" "$SYS"; fi ;;
 	esac
 done
-mkdir -p "$PKGDIR/flatpak-system"
-mv "$tmp/var/lib/flatpak/extension" "$PKGDIR/flatpak-system/extension"
+mkdir -p "$CLICK/flatpak-system"
+mv "$tmp/var/lib/flatpak/extension" "$CLICK/flatpak-system/extension"
 rm -rf "$tmp"
 
 rm -rf "$SYS/usr/share/doc" "$SYS/usr/share/man" "$SYS/usr/share/lintian" \
@@ -76,41 +85,20 @@ find "$SYS" -type l | while read -r l; do
 	esac
 done
 
+# copy files
+cp -r "$SRC/app" "$SRC/assets" "$SRC/bin" "$SRC/manifest.json" "$CLICK"
+
 # relocate gnupg: gpgme asks gpgconf for component paths, which are compiled
 # as /usr/bin/*; rootdir redirect keeps everything inside the click
 echo "rootdir=$CLICK_PREFIX/sysroot/usr" > "$SYS/usr/bin/gpgconf.ctl"
 
-chmod +x "$PKGDIR/bin/flatpak-hybris" "$PKGDIR/app/launch.sh"
-ln -sf flatpak-hybris "$PKGDIR/bin/flatpak"
+chmod +x "$CLICK/bin/flatpak-hybris" "$CLICK/app/launch.sh"
+ln -sf flatpak-hybris "$CLICK/bin/flatpak"
 
 # 4. version: manifest + optional CI suffix
-VERSION="$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' "$SRC/click/manifest.json")"
+VERSION="$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' "$CLICK/manifest.json")"
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
 	sha="${CI_COMMIT_SHORT_SHA:-${GITHUB_SHA:0:8}}"
 	VERSION="$VERSION+git$(date +%Y%m%d)${sha:+.$sha}"
-	sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" "$PKGDIR/manifest.json"
+	sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" "$CLICK/manifest.json"
 fi
-
-# 5. build the .click (a deb with Click-Version + manifest in control)
-cat > "$PKGDIR/DEBIAN/control" <<EOF
-Package: flatpak-hybris.ubports
-Version: $VERSION
-Click-Version: 0.4
-Architecture: arm64
-Maintainer: Azkali <a.ffcc7@gmail.com>
-Description: Flatpak with libhybris GL support for Ubuntu Touch
-EOF
-cp "$PKGDIR/manifest.json" "$PKGDIR/DEBIAN/manifest"
-cat > "$PKGDIR/DEBIAN/preinst" <<'EOF'
-#! /bin/sh
-echo "Click packages may not be installed directly using dpkg."
-echo "Use 'click install' instead."
-exit 1
-EOF
-chmod 755 "$PKGDIR/DEBIAN/preinst"
-( cd "$PKGDIR" && find . -type f -not -path './DEBIAN/*' -exec md5sum {} \; \
-	| sed 's|\./||' > DEBIAN/md5sums )
-
-dpkg-deb -Zgzip --root-owner-group -b "$PKGDIR" \
-	"$OUT/flatpak-hybris.ubports_${VERSION}_arm64.click"
-ls -lh "$OUT"/*.click

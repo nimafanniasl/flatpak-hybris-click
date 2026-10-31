@@ -2,6 +2,8 @@
 # Desktop entry point: run first-time setup (idempotent), collect status,
 # then show the QML status page.
 
+set -ex
+
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
 ROOT="$(dirname "$(dirname "$SELF")")"
 FP="$ROOT/bin/flatpak-hybris"
@@ -69,4 +71,5 @@ cat > "$STATUS" <<EOF
 }
 EOF
 
-exec qmlscene "$ROOT/app/qml/Main.qml" "$STATUS"
+# exec qmlscene "$ROOT/app/qml/Main.qml" "$STATUS"
+exec qmlscene "$ROOT/app/qml/Main.qml"
